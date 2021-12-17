@@ -25,6 +25,7 @@ This example project use the Json-C library to decode the objects to C char arra
 use the C libcurl library to request the data to the API.
 */
 
+//Definição das chaves
 char key_ID[] = "4A404E635266556A576E5A7234753778214125442A472D4B6150645367566B59";
 char key[] = "67566B59703373367638792F423F4528482B4D6251655468576D5A7134743777217A24432646294A404E635266556A586E3272357538782F413F442A472D4B6150645367566B59703373367639792442264529482B4D6251655468576D5A7134743777217A25432A462D4A614E635266556A586E3272357538782F413F442847";
 struct string {
@@ -157,12 +158,15 @@ void process_client(int client_fd){
 	memset(buffer, 0, strlen(buffer));
 	memset(ID, 0, BUF_SIZE);
 	memset(aux, 0, BUF_SIZE);
+	//recebe ID do cliente
 	nread = read(client_fd, buffer, BUF_SIZE-1);
 	buffer[nread] = '\0';
+	//desencripta o ID
 	xor_encrytp_decrypt(key_ID, buffer, strlen(buffer));
 	strcat(ID, buffer);
 	memset(buffer, 0, strlen(buffer));
 
+	//vai para o menu inicial
 	front_page(client_fd, ID);
 
 
@@ -179,32 +183,42 @@ void front_page(int client_fd, char ID[BUF_SIZE]){
 	char buffer[BUF_SIZE];
 	memset(buffer, 0, BUF_SIZE);
 	strcat(buffer, "Welcome to ISABELA's stats APP!\nChoose wich stats do you want to see:\n1-My Own Stats\n2-General Stats\n0-Log Out\n-> ");
+	//encripta o menu inicial
 	xor_encrytp_decrypt(key, buffer, strlen(buffer));
+	//envia o menu inicial para o cliente
 	write(client_fd, buffer, BUF_SIZE-1);
+	//verifica a resposta do cliente
 	do{
 		nread = read(client_fd, buffer, BUF_SIZE-1);
     	buffer[nread] = '\0';
+		//desencripta a resposta
 		xor_encrytp_decrypt(key, buffer, strlen(buffer));
-		//printf("\nbuffer -> %s", buffer);
 		buffer[strcspn(buffer, "\n")] = 0;
 		opt = atoi(buffer);
-		//printf("\nopt-> %d", opt);
+		//condição de resposta inválida
 		if(opt < 0 || opt > 2){
 			memset(buffer, 0, strlen(buffer));
 			strcat(buffer, "\nWrong option choose again\n\nChoose wich stats do you want to see:\n1-My Own Stats\n2-General Stats\n0-Log Out\n-> ");
+			//encripta
 			xor_encrytp_decrypt(key, buffer, strlen(buffer));
 			write(client_fd, buffer, BUF_SIZE-1);
 		}
+		//opção my own data
 		if(opt == 1){
 			my_data(client_fd, ID);
 		}
+		//opção general data
 		if(opt == 2){
 			general_data(client_fd, ID);
 		}
+		//opção log out
 		if(opt == 0){
 			memset(buffer, 0, BUF_SIZE);
+			//flag de log out
 			strcat(buffer, "out");
+			//encripta
 			xor_encrytp_decrypt(key, buffer, strlen(buffer));
+			//envia flag de log out
 			write(client_fd, buffer, BUF_SIZE-1);
 			close(client_fd);
 		}
@@ -215,6 +229,7 @@ void front_page(int client_fd, char ID[BUF_SIZE]){
 void my_data(int client_fd, char ID[BUF_SIZE]){
 	int nread = 0;
 	int opt = 0;
+	int valid = 0;
 	char buffer[BUF_SIZE], aux[BUF_SIZE];
 	memset(buffer, 0, BUF_SIZE);
 	memset(aux, 0, BUF_SIZE);
@@ -257,10 +272,10 @@ void my_data(int client_fd, char ID[BUF_SIZE]){
 		jobj_object_wifi = json_object_object_get(jobj_obj, "wifi");
 		jobj_object_timestamp = json_object_object_get(jobj_obj, "timestamp");
 
-		//printf("\nVerificar opcao -> %d\n", opt);
+		//verifica se o Id consta no ISABELA e vai buscar a informação desse ID
 		if(strcmp(ID, json_object_get_string(jobj_object_id)) == 0){
-			//printf("\nuser found");
-			//memset(buffer, 0, strlen(buffer));
+			valid++; //encontrou o ID do cliente
+			//junta a informação do ID numa string
 			strcat(aux, "Type = ");
 			strcat(aux, json_object_get_string(jobj_object_type));
 			strcat(aux, "\nActivity = ");
@@ -282,29 +297,42 @@ void my_data(int client_fd, char ID[BUF_SIZE]){
 			strcat(aux, "\nSMS sent = ");
 			strcat(aux, json_object_get_string(jobj_object_smssent));
 			strcat(aux, "\n\nType any number to go back to main menu!\n-> ");
-			//printf("\n%s", aux);
 			strcat(buffer, aux);
-			//printf("\n%s", buffer);
+			//encripta
 			xor_encrytp_decrypt(key, buffer, strlen(buffer));
+			//envia dados para o cliente
 			write(client_fd, buffer, BUF_SIZE-1);
 			memset(buffer, 0, strlen(buffer));
 			nread = read(client_fd, buffer, BUF_SIZE-1);
       		buffer[nread] = '\0';
+			//desencripta
 			xor_encrytp_decrypt(key, buffer, strlen(buffer));
+			//manda o cliente para o menu inicial
 			if(strcmp(buffer, aux) != 0)
 				front_page(client_fd, ID);
 
 		}	
-		/*else{
-			printf("\nuser not found");
-		}*/
-
+		else{
+			continue;
+		}
+	}
+	//não encontrou ID? Pode ser intruso -> Log Out
+	if(valid != 1){
+		memset(buffer, 0, BUF_SIZE);
+		//flag de log out
+		strcat(buffer, "out");
+		//encripta
+		xor_encrytp_decrypt(key, buffer, strlen(buffer));
+		//envia flag de log out
+		write(client_fd, buffer, BUF_SIZE-1);
+		close(client_fd);
 	}
 }
 
 
 void general_data(int client_fd, char ID[BUF_SIZE]){
 	int nread = 0;
+	int valid = 0;
 	int opt = 0;
 	int house = 0;
 	int uni = 0;
@@ -330,7 +358,7 @@ void general_data(int client_fd, char ID[BUF_SIZE]){
 	//Get array length
 	arraylen = json_object_array_length(jobj_array);
 
-	//Example of howto retrieve the data
+	//começa a preparar a string para o client
 	strcat(buffer, "There are ->");
 	sprintf(aux, "%d", arraylen);
 	strcat(buffer, aux);
@@ -339,11 +367,36 @@ void general_data(int client_fd, char ID[BUF_SIZE]){
 
 	memset(aux, 0, BUF_SIZE);
 	strcat(buffer, "\nGeneral stats Menu\n");
-	//write(client_fd, buffer, BUF_SIZE-1);
 	callsmiss = 0; callsmade = 0; callsreceive = 0; smssent = 0; smsreceive = 0;
 	exer = 0; sleepp = 0; classes = 0; tilting = 0; walk = 0; veic = 0; still = 0; unkown = 0;
-	//printf("\n%s", buffer);
 	memset(aux2, 0, strlen(aux2));
+
+	//procura o ID do cliente na ISABELA
+	for(i = 0; i < arraylen; i++){
+		//get the i-th object in jobj_array
+		jobj_obj = json_object_array_get_idx(jobj_array, i);
+
+		//get the name attribute in the i-th object
+		jobj_object_id = json_object_object_get(jobj_obj, "id");
+		if(strcmp(ID, json_object_get_string(jobj_object_id)) == 0){
+			valid++;
+		}
+		else{
+			continue;
+		}
+	}
+	//não encontrou ID? Pode ser intruso -> Log Out
+	if(valid != 1){
+		memset(buffer, 0, BUF_SIZE);
+		//flag de log out
+		strcat(buffer, "out");
+		//encripta
+		xor_encrytp_decrypt(key, buffer, strlen(buffer));
+		//envia flag de log out
+		write(client_fd, buffer, BUF_SIZE-1);
+		close(client_fd);
+	}
+	//encontrou o ID -> reoclha de dados globais
 	for(i = 0; i < arraylen; i++){
 		jobj_obj = json_object_array_get_idx(jobj_array, i);
 		jobj_object_location = json_object_object_get(jobj_obj, "location");
@@ -354,6 +407,8 @@ void general_data(int client_fd, char ID[BUF_SIZE]){
 		jobj_object_callsreceived = json_object_object_get(jobj_obj, "calls_received");
 		jobj_object_smsreceived = json_object_object_get(jobj_obj, "sms_received");
 		jobj_object_smssent = json_object_object_get(jobj_obj, "sms_sent");
+
+		//localização
 		strcat(aux2, json_object_get_string(jobj_object_location));
 		if(strcmp(aux2, "University")== 0){
 			uni++;
@@ -365,6 +420,7 @@ void general_data(int client_fd, char ID[BUF_SIZE]){
 			other++;
 		}
 		memset(aux2, 0, strlen(aux2));
+		//atividade
 		strcat(aux2, json_object_get_string(jobj_object_activity));
 		if(strcmp(aux2, "Exercise") == 0){
 			exer++;
@@ -391,6 +447,7 @@ void general_data(int client_fd, char ID[BUF_SIZE]){
 			still++;
 		}
 		memset(aux2, 0, strlen(aux2));
+		//chamadas
 		strcat(aux2, json_object_get_string(jobj_object_callsmade));
 		callsmade += atoi(aux2);
 		strcat(aux2, json_object_get_string(jobj_object_callsmissed));	
@@ -399,6 +456,7 @@ void general_data(int client_fd, char ID[BUF_SIZE]){
 		strcat(aux2, json_object_get_string(jobj_object_callsreceived));
 		callsreceive += atoi(aux2);
 		memset(aux2, 0, strlen(aux2));
+		//mensagens
 		strcat(aux2, json_object_get_string(jobj_object_smsreceived));
 		smsreceive += atoi(aux);
 		memset(aux2, 0, strlen(aux2));
@@ -407,7 +465,7 @@ void general_data(int client_fd, char ID[BUF_SIZE]){
 		memset(aux2, 0, strlen(aux2));
 
 	}
-	//memset(buffer, 0, BUF_SIZE);
+	//junta os dados recolhidos na string
 	sprintf(aux, "%d", uni);
 	strcat(buffer, "\nLocation Stats\nThere are ->");
 	strcat(buffer, aux);
@@ -475,16 +533,21 @@ void general_data(int client_fd, char ID[BUF_SIZE]){
 	strcat(buffer, "<- SMSs\n\nType any number to go back -> ");
 	memset(aux, 0, strlen(aux));
 
+	//encripta dados
 	xor_encrytp_decrypt(key, buffer, strlen(buffer));
+	//envia dados
 	write(client_fd, buffer, BUF_SIZE-1);
 	nread = read(client_fd, buffer, BUF_SIZE);
 	buffer[nread] = '\0';
+	//desencripta
 	xor_encrytp_decrypt(key, buffer, strlen(buffer));
+	//envia o cliente para o menu inicial
 	if(strcmp(buffer, aux) != 0){
 		front_page(client_fd, ID);
 	}
 }
 
+//função XOR que encripta e desencripta a informação
 void xor_encrytp_decrypt(char *key, char *string, int n){
   int i;
     int keylen = strlen(key);

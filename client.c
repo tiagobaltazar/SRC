@@ -15,6 +15,7 @@
 
 #define BUF_SIZE 2048
 
+//definição do ID e das chaves
 char id[] = "fc769b802ca3d871408d264a5da3f433";
 char key[] = "67566B59703373367638792F423F4528482B4D6251655468576D5A7134743777217A24432646294A404E635266556A586E3272357538782F413F442A472D4B6150645367566B59703373367639792442264529482B4D6251655468576D5A7134743777217A25432A462D4A614E635266556A586E3272357538782F413F442847";
 char key_ID[] = "4A404E635266556A576E5A7234753778214125442A472D4B6150645367566B59";
@@ -69,16 +70,22 @@ void process_server(int fd, char id[], char *key){
     system("clear");
     memset(buffer, 0, strlen(buffer));
     strcat(buffer, id);
-    xor_encrytp_decrypt(key_ID, buffer, strlen(buffer));
+    //encripta ID
+    xor_encrytp_decrypt(key_ID, buffer, strlen(buffer)); 
+    //envia o ID para o servidor
     write(fd, buffer, BUF_SIZE-1);  
     memset(buffer, 0, strlen(buffer));
+    //fica à espera de mensagens do servidor
     while (1){
       system("clear");
       memset(buffer, 0, BUF_SIZE);
       nread = read(fd, buffer, BUF_SIZE-1);
       buffer[nread] = '\0';
+      //desencripta mensagem
       xor_encrytp_decrypt(key, buffer, strlen(buffer));
+      //erifica se é a flag de Log Out
       if(strcmp(buffer, "out") == 0){
+        //terminar ligação
         close(fd);
         break;
       }
@@ -86,7 +93,9 @@ void process_server(int fd, char id[], char *key){
       memset(buffer, 0, BUF_SIZE);
       scanf("%d", &opt);
       sprintf(buffer, "%d", opt);
+      //encripta resposta para o servidor
       xor_encrytp_decrypt(key, buffer, strlen(buffer));
+      //manda resposta para o servidor
       write(fd, buffer, BUF_SIZE-1);
       
     }
@@ -99,6 +108,7 @@ void erro(char *msg)
 	exit(-1);
 }
 
+//função XOR que encripta e desencripta a informação
 void xor_encrytp_decrypt(char *key, char *string, int n){
   int i;
     int keylen = strlen(key);
